@@ -36,7 +36,16 @@ class CompoundBinaryFile:
         for fat_sect in self.header._sectFat:
             if fat_sect != FREESECT:
                 self.fat_sectors.append(fat_sect)
-        # TODO load any DIF sectors
+        
+        # load any DIF sectors
+        sector = self.header._sectDifStart
+        while sector != ENDOFCHAIN:
+            data = self.read_sector(sector)
+            for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                if value != FREESECT:
+                    self.fat_sectors.append(value)
+            # the last entry is actually a pointer to next DIF
+            sector = self.fat_sectors.pop()
 
         # load the FAT
         self.fat = []
@@ -98,6 +107,10 @@ class CompoundBinaryFile:
         for sector in xrange(0, len(self.fat)):
             print '{0:08X}: {1}'.format(
                     sector, fat_value_to_str(self.fat[sector]))
+
+    def dump_fat_sectors(self):
+        for sector in self.fat_sectors:
+            print '{0:08X}'.format(sector)
 
     def dump_mini_fat(self):
         for sector in xrange(0, len(self.minifat)):
@@ -286,6 +299,10 @@ if __name__ == '__main__':
             action="store_true", default=False,
             help="dump the FAT")
 
+    parser.add_option("--dump-fat-sectors", dest="dump_fat_sectors",
+            action="store_true", default=False,
+            help="dump the sectors marked as FAT")
+
     parser.add_option("--dump-mini-fat", dest="dump_mini_fat",
             action="store_true", default=False,
             help="dump the miniFAT")
@@ -322,6 +339,9 @@ if __name__ == '__main__':
 
     if options.dump_fat:
         ofdoc.dump_fat()
+
+    if options.dump_fat_sectors:
+        ofdoc.dump_fat_sectors()
 
     if options.dump_mini_fat:
         ofdoc.dump_mini_fat()
