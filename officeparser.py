@@ -119,8 +119,9 @@ class CompoundBinaryFile:
     
     def dump_directory(self):
         for x in xrange(0, len(self.directory)):
-            print "Directory Index {0}".format(x)
+            print "Directory Index {0:08X} ({0})".format(x)
             self.directory[x].dump()
+            print
 
     def get_stream(self, index):
         d = self.directory[index]
