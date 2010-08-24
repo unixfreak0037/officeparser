@@ -123,6 +123,87 @@ class CompoundBinaryFile:
             self.directory[x].dump()
             print
 
+    def dump_ole_streams(self):
+        for i in xrange(0, len(self.directory)):
+            if self.directory[i].name == "\x01Ole10Native":
+                print 'dumping directory #{0}'.format(i)
+                self.dump_ole_10_native_stream(i)
+
+    def dump_ole_10_native_stream(self, i):
+        data = self.get_stream(i)
+        size = unpack('<L', data[0:4])[0]
+        data = data[4:]
+        print 'size = {0:08X} ({0} bytes)'.format(size)
+
+        # TODO 
+        # haven't found the specs for this yet
+        #
+
+        unknown_short = None
+        filename = []
+        src_path = []
+        dst_path = []
+        actual_size = None
+        unknown_long_1 = None
+        unknown_long_2 = None
+
+        # I thought this might be an OLE type specifier ???
+        unknown_short = unpack('<H', data[0:2])[0]
+        data = data[2:] 
+        
+        # filename
+        i = 0
+        while i < len(data): 
+            if ord(data[i]) == 0:
+                break
+            filename.append(data[i])
+            i += 1
+        filename = ''.join(filename)
+        data = data[i + 1:]
+
+        # source path
+        i = 0
+        while i < len(data): 
+            if ord(data[i]) == 0:
+                break
+            src_path.append(data[i])
+            i += 1
+        src_path = ''.join(src_path)
+        data = data[i + 1:]
+
+        # TODO I bet these next 8 bytes are a timestamp
+        unknown_long_1 = unpack('<L', data[0:4])[0]
+        data = data[4:]
+
+        unknown_long_2 = unpack('<L', data[0:4])[0]
+        data = data[4:]
+
+        # destination path? (interesting that it has my name in there)
+        i = 0
+        while i < len(data): 
+            if ord(data[i]) == 0:
+                break
+            dst_path.append(data[i])
+            i += 1
+        dst_path = ''.join(dst_path)
+        data = data[i + 1:]
+
+        # size of the rest of the data
+        actual_size = unpack('<L', data[0:4])[0]
+        data = data[4:]
+
+        print 'unknown_short = {0:04X}'.format(unknown_short)
+        print 'file = {0}'.format(filename)
+        print 'src = {0}'.format(src_path)
+        print 'unknown_long_1 = {0:08X}'.format(unknown_long_1)
+        print 'unknown_long_2 = {0:08X}'.format(unknown_long_2)
+        print 'dst = {0}'.format(dst_path)
+        print "size = {0}".format(actual_size)
+
+        f = open(filename, 'wb')
+        f.write(data[0:actual_size])
+        f.close()
+
     def get_stream(self, index):
         d = self.directory[index]
         if d._ulSize < self.header._ulMiniSectorCutoff:
@@ -241,6 +322,7 @@ class Directory:
         self.directory = unpack("<64sHbbLLL16sLQQLLHH", data)
         self._ab = self.directory[0]
         self._cb = self.directory[1]
+        self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
@@ -270,8 +352,7 @@ _time[1]            = {10}
 _sectStart          = {11}
 _ulSize             = {12}
 _dptPropType        = {13}""".format(
-        "{0}\n                      {1}".format(
-        ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0]),
+        "{0}\n                      {1}".format(self.name,
         ' '.join(['{0:02X}'.format(ord(x)) for x in self._ab[0:self._cb]])),
         #unicode(self._ab).encode('us-ascii', 'ignore'),
         '{0:04X}'.format(self._cb),
@@ -319,6 +400,10 @@ if __name__ == '__main__':
             type='int', default=None,
             help="help the given stream")
 
+    parser.add_option('--dump-ole-streams', dest='dump_ole_streams',
+            action='store_true', default=False,
+            help="dump any existing OLE streams")
+
     parser.add_option('--dump-ministream', dest='dump_ministream',
             action='store_true', default=False,
             help='dump the ministream to stdout')
@@ -352,6 +437,9 @@ if __name__ == '__main__':
 
     if options.dump_directory:
         ofdoc.dump_directory()
+
+    if options.dump_ole_streams:
+        ofdoc.dump_ole_streams()
 
     if options.dump_stream != None:
         print ofdoc.get_stream(options.dump_stream)
