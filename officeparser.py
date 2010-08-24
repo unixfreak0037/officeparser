@@ -270,7 +270,10 @@ _time[1]            = {10}
 _sectStart          = {11}
 _ulSize             = {12}
 _dptPropType        = {13}""".format(
-        self._ab,
+        "{0}\n                      {1}".format(
+        ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0]),
+        ' '.join(['{0:02X}'.format(ord(x)) for x in self._ab[0:self._cb]])),
+        #unicode(self._ab).encode('us-ascii', 'ignore'),
         '{0:04X}'.format(self._cb),
         stgty_to_str(self._mse),
         de_to_str(self._bflags),
