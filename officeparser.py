@@ -61,14 +61,15 @@ class CompoundBinaryFile:
             self.directory.append(Directory(chunk))
 
         # load the ministream
-        self.ministream = self.read_stream(self.directory[0]._sectStart)
-        self.ministream = self.ministream[0:self.directory[0]._ulSize]
+        if self.directory[0]._sectStart != ENDOFCHAIN:
+            self.ministream = self.read_stream(self.directory[0]._sectStart)
+            self.ministream = self.ministream[0:self.directory[0]._ulSize]
 
-        # load the minifat
-        self.minifat = []
-        data = self.read_stream(self.header._sectMiniFatStart)
-        for value in unpack('<{0}L'.format(self.sector_size / 4), data):
-            self.minifat.append(value)
+            # load the minifat
+            self.minifat = []
+            data = self.read_stream(self.header._sectMiniFatStart)
+            for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                self.minifat.append(value)
 
     def get_header(self):
         return self.header
