@@ -4,6 +4,7 @@ import sys
 from struct import unpack
 from optparse import OptionParser
 from cStringIO import StringIO
+import logging
 
 DIFSECT = 0xFFFFFFFC;
 FATSECT = 0xFFFFFFFD;
@@ -216,9 +217,16 @@ class CompoundBinaryFile:
 
 class Header:
     def __init__(self, data):
+        # sanity checks
+        if len(data) < 512:
+            logging.warning('document is less than 512 bytes')
+
         self.data = data
         self.header = unpack("<8s16sHHHHHHLLLLLLLLLL109L", data)
         self._abSig = self.header[0]
+        if self._abSig != "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1":
+            logging.warning('invalid signature (not an office document?)')
+
         self._clid = self.header[1]
         self._uMinorVersion = self.header[2]
         self._uDllVersion = self.header[3]
@@ -371,6 +379,9 @@ _dptPropType        = {13}""".format(
         '{0:04X}'.format(self._dptPropType))
 
 if __name__ == '__main__':
+
+    logging.basicConfig(level=logging.DEBUG)
+
     parser = OptionParser()
 
     parser.add_option("--dump-header", dest="dump_header",
