@@ -215,6 +215,23 @@ class CompoundBinaryFile:
         data = data[0:d._ulSize]
         return data
 
+    def extract_macros(self):
+        # [MS-OVBA] 1.3.1 - look for the five streams
+        macro_streams = {
+                '_VBA_PROJECT': None,
+                'dir': None,
+                'PROJECT': None,
+                'PROJECTwm': None,
+                'PROJECTlk': None }
+
+        for d in self.directory:
+            if d.name in macro_streams.keys():
+                macro_streams[d.name] = d
+
+        for key in macro_streams.keys():
+            if macro_streams[key] == None:
+                logging.warning('missing stream {0}'.format(key))
+
 class Header:
     def __init__(self, data):
         # sanity checks
@@ -424,6 +441,10 @@ if __name__ == '__main__':
             action='store_true', default=False,
             help='store all streams as files')
 
+    parser.add_option('--extract-macros', dest='extract_macros',
+            action='store_true', default=False,
+            help='extract all macros into .vbs files')
+
     (options, args) = parser.parse_args()
 
     ofdoc = CompoundBinaryFile(args[0])
@@ -461,4 +482,7 @@ if __name__ == '__main__':
             f = open('exploded_{0}.dat'.format(x), 'wb')
             f.write(ofdoc.get_stream(x))
             f.close()
+
+    if options.extract_macros:
+        ofdoc.extract_macros()
 
