@@ -58,8 +58,10 @@ class CompoundBinaryFile:
         # get the list of directory sectors
         self.directory = []
         buffer = self.read_stream(self.header._sectDirStart)
+        directory_index = 0
         for chunk in unpack("128s" * (len(buffer) / 128), buffer):
-            self.directory.append(Directory(chunk))
+            self.directory.append(Directory(chunk, directory_index))
+            directory_index += 1
 
         # load the ministream
         if self.directory[0]._sectStart != ENDOFCHAIN:
@@ -343,8 +345,9 @@ def de_to_str(value):
         return "UNKNOWN VALUE {0}".format(value)
 
 class Directory:
-    def __init__(self, data):
+    def __init__(self, data, index):
         self.data = data
+        self.index = index
         self.directory = unpack("<64sHbbLLL16sLQQLLHH", data)
         self._ab = self.directory[0]
         self._cb = self.directory[1]
