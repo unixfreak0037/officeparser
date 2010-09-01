@@ -5,6 +5,7 @@ from struct import unpack
 from optparse import OptionParser
 from cStringIO import StringIO
 import logging
+import re
 
 DIFSECT = 0xFFFFFFFC;
 FATSECT = 0xFFFFFFFD;
@@ -219,7 +220,8 @@ class CompoundBinaryFile:
 
     def extract_macros(self):
         # [MS-OVBA] 1.3.1 - look for the five streams
-        macro_streams = {
+        macro_directories = {
+                'VBA':None,
                 '_VBA_PROJECT': None,
                 'dir': None,
                 'PROJECT': None,
@@ -227,12 +229,52 @@ class CompoundBinaryFile:
                 'PROJECTlk': None }
 
         for d in self.directory:
-            if d.name in macro_streams.keys():
-                macro_streams[d.name] = d
+            if d.name in macro_directories.keys():
+                macro_directories[d.name] = d
 
-        for key in macro_streams.keys():
-            if macro_streams[key] == None:
+        for key in macro_directories.keys():
+            if macro_directories[key] == None:
                 logging.warning('missing stream {0}'.format(key))
+
+        # parse PROJECT
+        buffer = StringIO()
+        buffer.write(self.get_stream(macro_directories['PROJECT'].index))
+        buffer.seek(0)
+        re_keyval = re.compile(r'^([^=]+)=(.*)$')
+
+        while True:
+            line = buffer.readline()
+            if len(line) < 1:
+                break
+
+            line = line.strip()
+            if len(line) < 1:
+                continue
+
+            # is this a section header?
+            print line
+            if line[0] == '[':
+                header = line[1:len(line) - 1]
+                logging.debug('new header {0}'.format(header))
+                continue
+
+            m = re_keyval.match(line)
+            if m == None:
+                logging.warning('invalid or unknown PROJECT property line')
+                logging.warning(line)
+                continue
+
+            # looking for code modules
+            if m.group(1) == 'Document':
+                print 'document module {0}'.format(m.group(2))
+            elif m.group(1) == 'Module':
+                print 'code module {0}'.format(m.group(2))
+            elif m.group(1) == 'Class':
+                print 'class module {0}'.format(m.group(2))
+            elif m.group(1) == 'BaseClass':
+                print 'designer module {0}'.format(m.group(2))
+
+            logging.debug('{0} = {1}'.format(m.group(1), m.group(2)))
 
 class Header:
     def __init__(self, data):
