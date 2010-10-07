@@ -64,9 +64,9 @@ def decompress_stream(compressed_container):
         #if chunk_sign != 0b0110:
             #logging.warning('invalid CompressedChunkSignature')
 
-        chunk_size += 3 # see 2.4.1.1.5
         logging.debug("chunk size = {0}".format(chunk_size))
 
+        compressed_end = min([len(compressed_container), compressed_current + chunk_size])
         compressed_current += 2
 
         if chunk_is_compressed == 0: # uncompressed
@@ -74,7 +74,6 @@ def decompress_stream(compressed_container):
             compressed_current += 4096
             continue
 
-        compressed_end = min([len(compressed_container), compressed_current + chunk_size])
         decompressed_chunk_start = len(decompressed_container)
         while compressed_current < compressed_end:
             flag_byte = ord(compressed_container[compressed_current])
@@ -453,6 +452,10 @@ if __name__ == '__main__':
             action='store_true', default=False,
             help="Create a manifest file that contains a list of all created files.")
 
+    parser.add_option('--generate-javascript', dest='generate_javascript',
+            action='store_true', default=False,
+            help="Store the results as javascript source code in officeparser_generated.js")
+
     parser.add_option('-o', '--output-dir', dest='output_dir',
             type='string', default='.',
             help="Directory to store all extracted files.")
@@ -507,6 +510,13 @@ if __name__ == '__main__':
             fail_on_invalid_sig=options.fail_on_invalid_sig)
 
     ofdoc = CompoundBinaryFile(args[0], parser_options)
+
+    if options.generate_javascript:
+        javascript = open(os.path.join(options.output_dir, 'exported.js'), 'wb')
+        javascript.write("var fat = new Array();\n")
+        for i in xrange(0, len(ofdoc.fat)):
+            javascript.write("fat[{0}] = {1};\n".format(i, ofdoc.fat[i]))
+        javascript.close();
 
     if options.create_manifest:
         manifest = open(os.path.join(options.output_dir, 'manifest'), 'wb')
