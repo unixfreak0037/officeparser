@@ -8,6 +8,7 @@ import logging
 import re
 import os
 
+OLE_SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 DIFSECT = 0xFFFFFFFC;
 FATSECT = 0xFFFFFFFD;
 ENDOFCHAIN = 0xFFFFFFFE;
@@ -113,6 +114,14 @@ class CompoundBinaryFile:
     def __init__(self, file, parser_options=None):
         self.file = file
         self.f = open(self.file, 'rb')
+
+        if parser_options.fail_on_invalid_sig:
+            sig = self.f.read(8)
+            if sig != OLE_SIGNATURE:
+                logging.warning('invalid OLE signature (not an office document?)')
+                sys.exit(1)
+            self.f.seek(0, os.SEEK_SET)
+
         # load the header
         self.header = Header(self.f.read(512), parser_options)
         self.sector_size = 2 ** self.header._uSectorShift
@@ -256,11 +265,6 @@ class Header:
         self.data = data
         self.header = unpack("<8s16sHHHHHHLLLLLLLLLL109L", data)
         self._abSig = self.header[0]
-        if self._abSig != "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1":
-            logging.warning('invalid signature (not an office document?)')
-            if parser_options.fail_on_invalid_sig:
-                sys.exit(1)
-
         self._clid = self.header[1]
         self._uMinorVersion = self.header[2]
         self._uDllVersion = self.header[3]
