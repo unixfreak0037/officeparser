@@ -551,8 +551,13 @@ if __name__ == '__main__':
                 print '{0}: {1}'.format(d.index, d.name)
 
     if options.print_expected_file_size:
-        print "expected file size = {0}".format(
-                (len([x for x in ofdoc.fat if x != FREESECT]) * ofdoc.sector_size) + 512)
+        expected_file_size = (len([x for x in ofdoc.fat if x != FREESECT]) * ofdoc.sector_size) + 512
+        actual_file_size = os.path.getsize(args[0])
+        size_diff = abs(expected_file_size - actual_file_size)
+        percent_diff = (float(size_diff) / float(expected_file_size)) * 100.0
+
+        print "expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
+            expected_file_size, actual_file_size, size_diff, percent_diff)
 
     # 
     # analysis options
