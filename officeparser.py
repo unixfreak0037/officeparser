@@ -420,15 +420,17 @@ _dptPropType        = {13}""".format(
 
 if __name__ == '__main__':
 
-    logging.basicConfig(level=logging.DEBUG)
-
     parser = OptionParser()
 
-    parser.add_option('-s', '--fail-on-invalid-signature', dest='fail_on_invalid_sig',
+    parser.add_option('-l', '--log-level', dest='log_level',
+            type='string', default='WARNING',
+            help='Sets logging level to DEBUG, INFO, WARNING (default) or ERROR.')
+
+    parser.add_option('-x', '--fail-on-invalid-signature', dest='fail_on_invalid_sig',
             action='store_true', default=False,
             help='Stop processing if the document is missing the required header signature.')
 
-    parser.add_option('-p', "--print-header", dest="print_header",
+    parser.add_option('-H', "--print-header", dest="print_header",
             action="store_true", default=False,
             help="Print header section.")
 
@@ -444,7 +446,7 @@ if __name__ == '__main__':
             action="store_true", default=False,
             help="Print mini-FAT structure.")
 
-    parser.add_option('-z', '--print-expected-file-size', dest='print_expected_file_size',
+    parser.add_option('-s', '--print-expected-file-size', dest='print_expected_file_size',
             action='store_true', default=False,
             help='Print the expected file size based on the number of FAT sectors and sector size.')
 
@@ -452,13 +454,13 @@ if __name__ == '__main__':
             action="store_true", default=False,
             help="Print the index and names of the streams contained in the document.")
 
+    parser.add_option('-i', "--print-invalid-fat-count", dest="print_invalid_fat_count",
+            action="store_true", default=False,
+            help="Prints the number of invalid FAT entries.")
+
     parser.add_option('--create-manifest', dest='create_manifest',
             action='store_true', default=False,
             help="Create a manifest file that contains a list of all created files.")
-
-    parser.add_option('--generate-javascript', dest='generate_javascript',
-            action='store_true', default=False,
-            help="Store the results as javascript source code in officeparser_generated.js")
 
     parser.add_option('-o', '--output-dir', dest='output_dir',
             type='string', default='.',
@@ -510,17 +512,12 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
+    logging.basicConfig(level=logging.__dict__[options.log_level])
+
     parser_options = ParserOptions(
             fail_on_invalid_sig=options.fail_on_invalid_sig)
 
     ofdoc = CompoundBinaryFile(args[0], parser_options)
-
-    if options.generate_javascript:
-        javascript = open(os.path.join(options.output_dir, 'exported.js'), 'wb')
-        javascript.write("var fat = new Array();\n")
-        for i in xrange(0, len(ofdoc.fat)):
-            javascript.write("fat[{0}] = {1};\n".format(i, ofdoc.fat[i]))
-        javascript.close();
 
     if options.create_manifest:
         manifest = open(os.path.join(options.output_dir, 'manifest'), 'wb')
@@ -578,14 +575,19 @@ if __name__ == '__main__':
                             d.index, current, next))
                     current = next
 
-    if options.check_fat:
+    if options.check_fat or options.print_invalid_fat_count:
+        invalid_fat_entries = 0
         for value in xrange(0, len(ofdoc.fat)):
-            #logging.debug('checking index {0:08X}'.format(value))
             ptr = ofdoc.read_fat(value)
             if ptr == DIFSECT or ptr == FATSECT or ptr == ENDOFCHAIN or ptr == FREESECT:
                 continue
             if ptr > len(ofdoc.fat):
-                logging.warning('invalid FAT sector {0:08X} value {1:08X}'.format(value, ptr))
+                invalid_fat_entries += 1
+                if options.check_fat:
+                    logging.warning('invalid FAT sector {0:08X} value {1:08X}'.format(value, ptr))
+
+    if options.print_invalid_fat_count:
+        print "invalid FAT entries: {0}".format(invalid_fat_entries)
 
     if options.check_orphaned_chains:
         buffer = [False for fat in ofdoc.fat]
