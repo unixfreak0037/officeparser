@@ -163,8 +163,11 @@ class CompoundBinaryFile:
         self.fat = []
         for fat_sect in self.fat_sectors:
             data = self.read_sector(fat_sect)
-            for value in unpack('<{0}L'.format(self.sector_size / 4), data):
-                self.fat.append(value)
+            if len(data) != self.sector_size:
+                logging.error('broken FAT (invalid sector size {0} != {1})'.format(len(data), self.sector_size))
+            else:
+                for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                    self.fat.append(value)
 
         # get the list of directory sectors
         self.directory = []
