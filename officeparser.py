@@ -126,6 +126,7 @@ class CompoundBinaryFile:
         self.header = Header(self.f.read(512), parser_options)
         self.sector_size = 2 ** self.header._uSectorShift
         self.mini_sector_size = 2 ** self.header._uMiniSectorShift
+
         # get a sector count
         if (os.path.getsize(file) - 512) % self.sector_size != 0:
             logging.warning("last sector has invalid size")
@@ -583,8 +584,19 @@ if __name__ == '__main__':
                             d.index, current, next))
                     current = next
 
+    invalid_fat_sectors = 0
     if options.check_fat or options.print_invalid_fat_count:
-        invalid_fat_entries = 0
+        for value in ofdoc.fat_sectors:
+            if value > ofdoc.sector_count:
+                invalid_fat_sectors += 1
+                if options.check_fat:
+                    logging.warning('invalid FAT sector reference {0:08X}'.format(value))
+
+    if options.print_invalid_fat_count:
+        print "invalid FAT sector references: {0}".format(invalid_fat_sectors)
+
+    invalid_fat_entries = 0
+    if options.check_fat or options.print_invalid_fat_count:
         for value in xrange(0, len(ofdoc.fat)):
             ptr = ofdoc.read_fat(value)
             if ptr == DIFSECT or ptr == FATSECT or ptr == ENDOFCHAIN or ptr == FREESECT:
