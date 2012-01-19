@@ -14,9 +14,9 @@ FATSECT = 0xFFFFFFFD;
 ENDOFCHAIN = 0xFFFFFFFE;
 FREESECT = 0xFFFFFFFF;
 
-MODULE_EXTENSION = ".bas"
-CLASS_EXTENSION = ".cls"
-FORM_EXTENSION = ".frm"
+MODULE_EXTENSION = "bas"
+CLASS_EXTENSION = "cls"
+FORM_EXTENSION = "frm"
 
 def fat_value_to_str(value):
     if value == DIFSECT:
