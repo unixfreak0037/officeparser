@@ -818,7 +818,7 @@ if __name__ == '__main__':
             elif m.group(1) == 'Class':
                 code_modules[m.group(2)] = CLASS_EXTENSION
             elif m.group(1) == 'BaseClass':
-                code_modules[m.group(2)] = FORM_EXTENSION ])
+                code_modules[m.group(2)] = FORM_EXTENSION
 
         # this stream has to exist as well
         dir_stream = ofdoc.find_stream_by_name('dir')
