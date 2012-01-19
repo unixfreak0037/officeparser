@@ -1135,7 +1135,7 @@ if __name__ == '__main__':
                 count = 0
                 while True:
                     filext = code_modules[MODULENAME_ModuleName]
-                    filename = os.path.join(options.output_dir, '{1}.{2}'.format(MODULENAME_ModuleName, filext))
+                    filename = os.path.join(options.output_dir, '{0}.{1}'.format(MODULENAME_ModuleName, filext))
                     count += 1
                     if not os.path.exists(filename):
                         break
