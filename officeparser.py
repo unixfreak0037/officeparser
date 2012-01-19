@@ -14,6 +14,10 @@ FATSECT = 0xFFFFFFFD;
 ENDOFCHAIN = 0xFFFFFFFE;
 FREESECT = 0xFFFFFFFF;
 
+MODULE_EXTENSION = ".bas"
+CLASS_EXTENSION = ".cls"
+FORM_EXTENSION = ".frm"
+
 def fat_value_to_str(value):
     if value == DIFSECT:
         return '0xFFFFFFFC (DIF)'
@@ -783,7 +787,7 @@ if __name__ == '__main__':
         buffer.seek(0)
         re_keyval = re.compile(r'^([^=]+)=(.*)$')
 
-        code_modules = []
+        code_modules = {}
         while True:
             line = buffer.readline()
             if len(line) < 1:
@@ -805,14 +809,16 @@ if __name__ == '__main__':
                 continue
 
             # looking for code modules
+            # add the code module as a key in the dictionary
+            # the value will be the extension needed later
             if m.group(1) == 'Document':
-                code_modules.append(m.group(2).split("\x2F")[0])
+                code_modules[m.group(2).split("\x2F")[0]] = CLASS_EXTENSION
             elif m.group(1) == 'Module':
-                code_modules.append(m.group(2))
+                code_modules[m.group(2)] = MODULE_EXTENSION
             elif m.group(1) == 'Class':
-                code_modules.append(m.group(2))
+                code_modules[m.group(2)] = CLASS_EXTENSION
             elif m.group(1) == 'BaseClass':
-                code_modules.append(m.group(2))
+                code_modules[m.group(2)] = FORM_EXTENSION ])
 
         # this stream has to exist as well
         dir_stream = ofdoc.find_stream_by_name('dir')
@@ -1128,7 +1134,8 @@ if __name__ == '__main__':
                 code_data = decompress_stream(code_data)
                 count = 0
                 while True:
-                    filename = os.path.join(options.output_dir, 'macro_{0}_{1}.vbs'.format(count, MODULENAME_ModuleName))
+                    filext = code_modules[MODULENAME_ModuleName]
+                    filename = os.path.join(options.output_dir, '{1}.{2}'.format(MODULENAME_ModuleName, filext))
                     count += 1
                     if not os.path.exists(filename):
                         break
