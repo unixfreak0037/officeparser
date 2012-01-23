@@ -7,6 +7,8 @@ from cStringIO import StringIO
 import logging
 import re
 import os
+import zipfile
+import tempfile
 
 OLE_SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 DIFSECT = 0xFFFFFFFC;
@@ -17,6 +19,8 @@ FREESECT = 0xFFFFFFFF;
 MODULE_EXTENSION = "bas"
 CLASS_EXTENSION = "cls"
 FORM_EXTENSION = "frm"
+
+BINFILE_PATH = "xl/vbaProject.bin"
 
 def fat_value_to_str(value):
     if value == DIFSECT:
@@ -111,13 +115,25 @@ def decompress_stream(compressed_container):
 class ParserOptions:
     def __init__(
             self, 
-            fail_on_invalid_sig=False):
+            fail_on_invalid_sig=False, 
+            treat_as_zipfile=False):
         self.fail_on_invalid_sig = fail_on_invalid_sig
+        self.treat_as_zipfile = treat_as_zipfile
 
 class CompoundBinaryFile:
     def __init__(self, file, parser_options=None):
         self.file = file
-        self.f = open(self.file, 'rb')
+
+        # if the file is a zipfile, extract the binary part to a tempfile and continue,
+        # otherwise, proceed as if a real binary file.
+        if parser_options.treat_as_zipfile:
+            zfile = zipfile.ZipFile(self.file, "r")           
+            data = zfile.read(BINFILE_PATH)             
+            self.f = tempfile.TemporaryFile()           
+            self.f.write(data)
+            self.f.seek(0)                              # rewind the data file to the beginning
+        else:
+            self.f = open(self.file, 'rb')
 
         if parser_options.fail_on_invalid_sig:
             sig = self.f.read(8)
@@ -518,12 +534,17 @@ if __name__ == '__main__':
             action='store_true', default=False,
             help='Checks for chains that are not accesible from any directory entry.')
 
+    parser.add_option('--treat-as-zipfile', dest='treat_as_zipfile',
+            action='store_true', default=False,
+            help='Treats the file as if it were a zipfile. This allows the script to operate on xl2007 and xl2010 files.')
+
     (options, args) = parser.parse_args()
 
     logging.basicConfig(level=logging.__dict__[options.log_level])
 
     parser_options = ParserOptions(
-            fail_on_invalid_sig=options.fail_on_invalid_sig)
+            fail_on_invalid_sig=options.fail_on_invalid_sig,
+            treat_as_zipfile=options.treat_as_zipfile)
 
     ofdoc = CompoundBinaryFile(args[0], parser_options)
 
