@@ -115,10 +115,8 @@ def decompress_stream(compressed_container):
 class ParserOptions:
     def __init__(
             self, 
-            fail_on_invalid_sig=False, 
-            treat_as_zipfile=False):
+            fail_on_invalid_sig=False):
         self.fail_on_invalid_sig = fail_on_invalid_sig
-        self.treat_as_zipfile = treat_as_zipfile
 
 class CompoundBinaryFile:
     def __init__(self, file, parser_options=None):
@@ -126,7 +124,7 @@ class CompoundBinaryFile:
 
         # if the file is a zipfile, extract the binary part to a tempfile and continue,
         # otherwise, proceed as if a real binary file.
-        if parser_options.treat_as_zipfile:
+        if zipfile.is_zipfile(self.file):
             zfile = zipfile.ZipFile(self.file, "r")           
             data = zfile.read(BINFILE_PATH)             
             self.f = tempfile.TemporaryFile()           
@@ -534,17 +532,12 @@ if __name__ == '__main__':
             action='store_true', default=False,
             help='Checks for chains that are not accesible from any directory entry.')
 
-    parser.add_option('--treat-as-zipfile', dest='treat_as_zipfile',
-            action='store_true', default=False,
-            help='Treats the file as if it were a zipfile. This allows the script to operate on xl2007 and xl2010 files.')
-
     (options, args) = parser.parse_args()
 
     logging.basicConfig(level=logging.__dict__[options.log_level])
 
     parser_options = ParserOptions(
-            fail_on_invalid_sig=options.fail_on_invalid_sig,
-            treat_as_zipfile=options.treat_as_zipfile)
+            fail_on_invalid_sig=options.fail_on_invalid_sig)
 
     ofdoc = CompoundBinaryFile(args[0], parser_options)
 
