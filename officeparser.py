@@ -125,14 +125,12 @@ class CompoundBinaryFile:
         # if the file is a zipfile, extract the binary part to a tempfile and continue,
         # otherwise, proceed as if a real binary file.
         if zipfile.is_zipfile(self.file):
-            logging.warning('this is a zipfile')
             zfile = zipfile.ZipFile(self.file, "r")           
             data = zfile.read(BINFILE_PATH)             
             self.f = tempfile.TemporaryFile()           
             self.f.write(data)
             self.f.seek(0)                              # rewind the data file to the beginning
         else:
-            logging.warning('not a zipfile')
             self.f = open(self.file, 'rb')
 
         if parser_options.fail_on_invalid_sig:
