@@ -2,9 +2,7 @@
 
 ## Options
 
-__treat-as-zipfile__
+__--extract-macros__
 
-This dips into an xl2007/xl2010 file (zip archives) and reads only the vbaProject.bin file.  Should be used in conjuction with --extract-macros
-
-    officeparse.py <filename> --treat-as-zipfile --extract-macros
+This extracts all macro code from the office document.  It will auto-detect whether the file is a newer file and act accordingly.
     
