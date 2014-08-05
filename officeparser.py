@@ -20,7 +20,7 @@ MODULE_EXTENSION = "bas"
 CLASS_EXTENSION = "cls"
 FORM_EXTENSION = "frm"
 
-BINFILE_PATH = "xl/vbaProject.bin"
+BINFILE_NAME = "/vbaProject.bin"
 
 def fat_value_to_str(value):
     if value == DIFSECT:
@@ -124,14 +124,16 @@ class CompoundBinaryFile:
 
         # if the file is a zipfile, extract the binary part to a tempfile and continue,
         # otherwise, proceed as if a real binary file.
-        #if zipfile.is_zipfile(self.file):
-            #zfile = zipfile.ZipFile(self.file, "r")           
-            #data = zfile.read(BINFILE_PATH)             
-            #self.f = tempfile.TemporaryFile()           
-            #self.f.write(data)
-            #self.f.seek(0)                              # rewind the data file to the beginning
-        #else:
-        self.f = open(self.file, 'rb')
+        if zipfile.is_zipfile(self.file):
+            zfile = zipfile.ZipFile(self.file, "r")
+            for name in zfile.namelist():
+                if name.endswith(BINFILE_NAME):
+                    data = zfile.read(name)
+                    self.f = tempfile.TemporaryFile()
+                    self.f.write(data)
+                    self.f.seek(0)  # rewind the data file to the beginning
+        else:
+            self.f = open(self.file, 'rb')
 
         if parser_options.fail_on_invalid_sig:
             sig = self.f.read(8)
