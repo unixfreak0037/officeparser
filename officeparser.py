@@ -122,9 +122,17 @@ class CompoundBinaryFile:
     def __init__(self, file, parser_options=None):
         self.file = file
 
+        self.f = open(self.file, 'rb')
+        sig = self.f.read(8)
+        is_ole_document = sig == OLE_SIGNATURE
+        if not is_ole_document and parser_options.fail_on_invalid_sig:
+            logging.warning('invalid OLE signature (not an office document?)')
+            sys.exit(1)
+        self.f.close()
+
         # if the file is a zipfile, extract the binary part to a tempfile and continue,
         # otherwise, proceed as if a real binary file.
-        if zipfile.is_zipfile(self.file):
+        if not is_ole_document and zipfile.is_zipfile(self.file):
             zfile = zipfile.ZipFile(self.file, "r")
             for name in zfile.namelist():
                 if name.endswith(BINFILE_NAME):
@@ -134,13 +142,6 @@ class CompoundBinaryFile:
                     self.f.seek(0)  # rewind the data file to the beginning
         else:
             self.f = open(self.file, 'rb')
-
-        if parser_options.fail_on_invalid_sig:
-            sig = self.f.read(8)
-            if sig != OLE_SIGNATURE:
-                logging.warning('invalid OLE signature (not an office document?)')
-                sys.exit(1)
-            self.f.seek(0, os.SEEK_SET)
 
         # load the header
         self.header = Header(self.f.read(512), parser_options)
