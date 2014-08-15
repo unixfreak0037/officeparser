@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# CHANGELOG:
+# 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
+#             - VBA: fixed infinite loop when output file already exists
+
 import sys
 from struct import unpack
 from optparse import OptionParser
@@ -1149,14 +1153,16 @@ if __name__ == '__main__':
             code_data = code_data[MODULEOFFSET_TextOffset:]
             if len(code_data) > 0:
                 code_data = decompress_stream(code_data)
-                count = 0
-                while True:
-                    filext = code_modules[MODULENAME_ModuleName]
-                    filename = os.path.join(options.output_dir, '{0}.{1}'.format(MODULENAME_ModuleName, filext))
-                    count += 1
-                    if not os.path.exists(filename):
-                        break
-
+                # build filename
+                filext = code_modules[MODULENAME_ModuleName]
+                filename = os.path.join(options.output_dir, '{0}.{1}'.format(MODULENAME_ModuleName, filext))
+                # if the file already exists, add a counter until it's unused:
+                counter = 1
+                while os.path.exists(filename):
+                    logging.debug('Filename %s already exists' % filename)
+                    filename = os.path.join(options.output_dir, '%s_%d.%s' % (MODULENAME_ModuleName, counter, filext))
+                    counter += 1
+                logging.info('Saving VBA code to %s' % filename)
                 f = open(filename, 'wb')
                 f.write(code_data)
                 f.close()
