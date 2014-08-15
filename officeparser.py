@@ -3,6 +3,7 @@
 # CHANGELOG:
 # 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
 #             - VBA: fixed infinite loop when output file already exists
+#             - improved logging output, set default level to INFO
 
 import sys
 from struct import unpack
@@ -452,8 +453,8 @@ if __name__ == '__main__':
     parser = OptionParser()
 
     parser.add_option('-l', '--log-level', dest='log_level',
-            type='string', default='WARNING',
-            help='Sets logging level to DEBUG, INFO, WARNING (default) or ERROR.')
+            type='string', default='INFO',
+            help='Sets logging level to DEBUG, INFO (default), WARNING or ERROR.')
 
     parser.add_option('-x', '--fail-on-invalid-signature', dest='fail_on_invalid_sig',
             action='store_true', default=False,
@@ -541,7 +542,8 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    logging.basicConfig(level=logging.__dict__[options.log_level])
+    logging.basicConfig(format='%(levelname)s: %(message)s',
+        level=logging.__dict__[options.log_level])
 
     parser_options = ParserOptions(
             fail_on_invalid_sig=options.fail_on_invalid_sig)
