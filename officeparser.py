@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# CHANGELOG:
+# 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
+#             - VBA: fixed infinite loop when output file already exists
+#             - improved logging output, set default level to INFO
+
 import sys
 from struct import unpack
 from optparse import OptionParser
@@ -95,9 +100,9 @@ def decompress_stream(compressed_container):
                     compressed_current += 1
                     continue
 
-                # 
+                #
                 # copy tokens
-                # 
+                #
 
                 copy_token = unpack("<H", compressed_container[compressed_current:compressed_current + 2])[0]
                 length_mask, offset_mask, bit_count, maximum_length = copytoken_help(len(decompressed_container) - decompressed_chunk_start)
@@ -114,7 +119,7 @@ def decompress_stream(compressed_container):
 
 class ParserOptions:
     def __init__(
-            self, 
+            self,
             fail_on_invalid_sig=False):
         self.fail_on_invalid_sig = fail_on_invalid_sig
 
@@ -162,7 +167,7 @@ class CompoundBinaryFile:
         for fat_sect in self.header._sectFat:
             if fat_sect != FREESECT:
                 self.fat_sectors.append(fat_sect)
-        
+
         # load any DIF sectors
         sector = self.header._sectDifStart
         buffer = [sector]
@@ -335,7 +340,7 @@ _csectDif           = {17}""".format(
         '{0}'.format(self._uDllVersion),
         '{0:04X}'.format(self._uByteOrder),
         '{0} ({1} bytes)'.format(self._uSectorShift, 2 ** self._uSectorShift),
-        '{0} ({1} bytes)'.format(self._uMiniSectorShift, 
+        '{0} ({1} bytes)'.format(self._uMiniSectorShift,
                                  2 ** self._uMiniSectorShift),
         '{0:04X}'.format(self._usReserved),
         '{0:08X}'.format(self._usReserved1),
@@ -343,7 +348,7 @@ _csectDif           = {17}""".format(
         '{0:08X}'.format(self._csectFat),
         '{0:08X}'.format(self._sectDirStart),
         '{0:08X}'.format(self._signature),
-        '{0:08X} ({1} bytes)'.format(self._ulMiniSectorCutoff, 
+        '{0:08X} ({1} bytes)'.format(self._ulMiniSectorCutoff,
                                      self._ulMiniSectorCutoff),
         '{0:08X}'.format(self._sectMiniFatStart),
         '{0:08X}'.format(self._csectMiniFat),
@@ -448,8 +453,8 @@ if __name__ == '__main__':
     parser = OptionParser()
 
     parser.add_option('-l', '--log-level', dest='log_level',
-            type='string', default='WARNING',
-            help='Sets logging level to DEBUG, INFO, WARNING (default) or ERROR.')
+            type='string', default='INFO',
+            help='Sets logging level to DEBUG, INFO (default), WARNING or ERROR.')
 
     parser.add_option('-x', '--fail-on-invalid-signature', dest='fail_on_invalid_sig',
             action='store_true', default=False,
@@ -537,7 +542,8 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
 
-    logging.basicConfig(level=logging.__dict__[options.log_level])
+    logging.basicConfig(format='%(levelname)s: %(message)s',
+        level=logging.__dict__[options.log_level])
 
     parser_options = ParserOptions(
             fail_on_invalid_sig=options.fail_on_invalid_sig)
@@ -547,9 +553,9 @@ if __name__ == '__main__':
     if options.create_manifest:
         manifest = open(os.path.join(options.output_dir, 'manifest'), 'wb')
 
-    # 
+    #
     # print options
-    # 
+    #
     if options.print_header:
         ofdoc.header.pretty_print()
 
@@ -581,7 +587,7 @@ if __name__ == '__main__':
         print "expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
             expected_file_size, actual_file_size, size_diff, percent_diff)
 
-    # 
+    #
     # analysis options
     #
     if options.check_stream_cont:
@@ -653,7 +659,7 @@ if __name__ == '__main__':
             # ignore streams in the ministream
             if d.index > 0 and d._ulSize < ofdoc.header._ulMiniSectorCutoff:
                 continue
-            
+
             index = d._sectStart
             while index != ENDOFCHAIN:
                 #logging.debug('checking index {0:08X}'.format(index))
@@ -698,7 +704,7 @@ if __name__ == '__main__':
                 data = data[4:]
                 logging.debug('size = {0:08X} ({0} bytes)'.format(size))
 
-                # TODO 
+                # TODO
                 # haven't found the specs for this yet
                 #
 
@@ -712,11 +718,11 @@ if __name__ == '__main__':
 
                 # I thought this might be an OLE type specifier ???
                 unknown_short = unpack('<H', data[0:2])[0]
-                data = data[2:] 
-                
+                data = data[2:]
+
                 # filename
                 i = 0
-                while i < len(data): 
+                while i < len(data):
                     if ord(data[i]) == 0:
                         break
                     filename.append(data[i])
@@ -726,7 +732,7 @@ if __name__ == '__main__':
 
                 # source path
                 i = 0
-                while i < len(data): 
+                while i < len(data):
                     if ord(data[i]) == 0:
                         break
                     src_path.append(data[i])
@@ -743,7 +749,7 @@ if __name__ == '__main__':
 
                 # destination path? (interesting that it has my name in there)
                 i = 0
-                while i < len(data): 
+                while i < len(data):
                     if ord(data[i]) == 0:
                         break
                     dst_path.append(data[i])
@@ -911,7 +917,7 @@ if __name__ == '__main__':
             logging.error("PROJECTDOCSTRING_SizeOfDocStringUnicode is not even")
         PROJECTDOCSTRING_DocStringUnicode = dir_stream.read(PROJECTDOCSTRING_SizeOfDocStringUnicode)
 
-        # PROJECTHELPFILEPATH Record
+        # PROJECTHELPFILEPATH Record - MS-OVBA 2.3.4.2.1.7
         PROJECTHELPFILEPATH_Id = unpack("<H", dir_stream.read(2))[0]
         check_value('PROJECTHELPFILEPATH_Id', 0x0006, PROJECTHELPFILEPATH_Id)
         PROJECTHELPFILEPATH_SizeOfHelpFile1 = unpack("<L", dir_stream.read(4))[0]
@@ -919,7 +925,7 @@ if __name__ == '__main__':
             logging.error("PROJECTHELPFILEPATH_SizeOfHelpFile1 value not in range: {0}".format(PROJECTHELPFILEPATH_SizeOfHelpFile1))
         PROJECTHELPFILEPATH_HelpFile1 = dir_stream.read(PROJECTHELPFILEPATH_SizeOfHelpFile1)
         PROJECTHELPFILEPATH_Reserved = unpack("<H", dir_stream.read(2))[0]
-        check_value('PROJECTHELPFILEPATH_Reserved', 0x0049, PROJECTHELPFILEPATH_Reserved)
+        check_value('PROJECTHELPFILEPATH_Reserved', 0x003D, PROJECTHELPFILEPATH_Reserved)
         PROJECTHELPFILEPATH_SizeOfHelpFile2 = unpack("<L", dir_stream.read(4))[0]
         if PROJECTHELPFILEPATH_SizeOfHelpFile2 != PROJECTHELPFILEPATH_SizeOfHelpFile1:
             logging.error("PROJECTHELPFILEPATH_SizeOfHelpFile1 does not equal PROJECTHELPFILEPATH_SizeOfHelpFile2")
@@ -1149,14 +1155,16 @@ if __name__ == '__main__':
             code_data = code_data[MODULEOFFSET_TextOffset:]
             if len(code_data) > 0:
                 code_data = decompress_stream(code_data)
-                count = 0
-                while True:
-                    filext = code_modules[MODULENAME_ModuleName]
-                    filename = os.path.join(options.output_dir, '{0}.{1}'.format(MODULENAME_ModuleName, filext))
-                    count += 1
-                    if not os.path.exists(filename):
-                        break
-
+                # build filename
+                filext = code_modules[MODULENAME_ModuleName]
+                filename = os.path.join(options.output_dir, '{0}.{1}'.format(MODULENAME_ModuleName, filext))
+                # if the file already exists, add a counter until it's unused:
+                counter = 1
+                while os.path.exists(filename):
+                    logging.debug('Filename %s already exists' % filename)
+                    filename = os.path.join(options.output_dir, '%s_%d.%s' % (MODULENAME_ModuleName, counter, filext))
+                    counter += 1
+                logging.info('Saving VBA code to %s' % filename)
                 f = open(filename, 'wb')
                 f.write(code_data)
                 f.close()
