@@ -281,7 +281,7 @@ class CompoundBinaryFile:
 
     def find_stream_by_name(self, name):
         for d in self.directory:
-            if d.name == name:
+            if d.name == name and d._mse == STGTY_STREAM:
                 return d
         return None
 
