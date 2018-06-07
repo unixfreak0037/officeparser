@@ -205,6 +205,7 @@ class CompoundBinaryFile:
             directory_index += 1
 
         # load the ministream
+        self.minifat = []
         if self.directory[0]._sectStart != ENDOFCHAIN:
             self.ministream = self.read_chain(self.directory[0]._sectStart)
             #logging.debug("mini stream specified size = {0}".format(self.directory[0]._ulSize))
@@ -216,7 +217,6 @@ class CompoundBinaryFile:
             # chain in the Fat, with the beginning of the chain stored in the
             # header.
 
-            self.minifat = []
             data = StringIO(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
