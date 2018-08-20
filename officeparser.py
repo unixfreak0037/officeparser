@@ -448,7 +448,7 @@ _dptPropType        = {13}""".format(
         '{0:08X} ({0} bytes)'.format(self._ulSize),
         '{0:04X}'.format(self._dptPropType))
 
-if __name__ == '__main__':
+def _main():
 
     parser = OptionParser()
 
@@ -1202,3 +1202,6 @@ if __name__ == '__main__':
 
     if options.create_manifest:
         manifest.close()
+
+if __name__ == '__main__':
+	_main()
