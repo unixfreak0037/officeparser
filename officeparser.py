@@ -196,14 +196,14 @@ class CompoundBinaryFile:
             if len(data) != self.sector_size:
                 logging.error('broken FAT (invalid sector size {0} != {1})'.format(len(data), self.sector_size))
             else:
-                for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                for value in unpack('<{0}L'.format(self.sector_size // 4), data):
                     self.fat.append(value)
 
         # get the list of directory sectors
         self.directory = []
         buffer = self.read_chain(self.header._sectDirStart)
         directory_index = 0
-        for chunk in unpack("128s" * (len(buffer) / 128), buffer):
+        for chunk in unpack("128s" * (len(buffer) // 128), buffer):
             self.directory.append(Directory(chunk, directory_index))
             directory_index += 1
 
@@ -228,7 +228,7 @@ class CompoundBinaryFile:
                 if len(chunk) != self.sector_size:
                     logging.warning("encountered EOF while parsing minifat")
                     continue
-                for value in unpack('<{0}L'.format(self.sector_size / 4), chunk):
+                for value in unpack('<{0}L'.format(self.sector_size // 4), chunk):
                     self.minifat.append(value)
 
     def read_sector(self, sector):
