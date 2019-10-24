@@ -9,7 +9,7 @@ from __future__ import print_function
 import sys
 from struct import unpack
 from optparse import OptionParser
-from cStringIO import StringIO
+from io import BytesIO
 import logging
 import re
 import os
@@ -218,7 +218,7 @@ class CompoundBinaryFile:
             # chain in the Fat, with the beginning of the chain stored in the
             # header.
 
-            data = StringIO(self.read_chain(self.header._sectMiniFatStart))
+            data = BytesIO(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
                 if chunk == '':
@@ -249,7 +249,7 @@ class CompoundBinaryFile:
         """Returns the entire contents of a chain starting at the given sector."""
         sector = start
         check = [ sector ] # keep a list of sectors we've already read
-        buffer = StringIO()
+        buffer = BytesIO()
         while sector != ENDOFCHAIN:
             buffer.write(read_sector_f(sector))
             next = read_fat_f(sector)
