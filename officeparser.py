@@ -801,8 +801,8 @@ def _main():
                 f.write(ofdoc.get_stream(d.index))
                 f.close()
                 if options.create_manifest:
-                    manifest.write(os.path.basename(filename))
-                    manifest.write("\n")
+                    manifest.write(os.path.basename(filename).encode())
+                    manifest.write(b"\n")
                 logging.debug("created file {0}".format(filename))
 
     while options.extract_macros:
