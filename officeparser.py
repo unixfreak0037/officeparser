@@ -685,20 +685,20 @@ def _main():
     # dump options
     #
     if options.dump_sector:
-        sys.stdout.write(ofdoc.read_sector(options.dump_sector))
+        os.write(sys.stdout.fileno(), ofdoc.read_sector(options.dump_sector))
         sys.exit(0)
 
     if options.dump_ministream:
-        sys.stdout.write(ofdoc.ministream)
+        os.write(sys.stdout.fileno(), (ofdoc.ministream))
         sys.exit(0)
 
     if options.dump_stream:
-        sys.stdout.write(ofdoc.get_stream(options.dump_stream))
+        os.write(sys.stdout.fileno(), (ofdoc.get_stream(options.dump_stream)))
         sys.exit(0)
 
     if options.dump_stream_by_name:
         d = ofdoc.find_stream_by_name(options.dump_stream_by_name)
-        sys.stdout.write(ofdoc.get_stream(d.index))
+        os.write(sys.stdout.fileno(), (ofdoc.get_stream(d.index)))
         sys.exit(0)
 
     #
