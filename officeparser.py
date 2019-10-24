@@ -223,7 +223,7 @@ class CompoundBinaryFile:
             data = BytesIO(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
-                if chunk == '':
+                if len(chunk) == 0:
                     break
                 if len(chunk) != self.sector_size:
                     logging.warning("encountered EOF while parsing minifat")
