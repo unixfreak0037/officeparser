@@ -28,6 +28,8 @@ FORM_EXTENSION = "frm"
 
 BINFILE_NAME = "/vbaProject.bin"
 
+PY3 = sys.version_info[0] == 3
+
 def fat_value_to_str(value):
     if value == DIFSECT:
         return '0xFFFFFFFC (DIF)'
@@ -402,7 +404,12 @@ class Directory:
         self._ab = self.directory[0]
         self._cb = self.directory[1]
         # convert wide chars into ASCII
-        self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        if PY3:
+            # In Python 3 we have numbers we need to convert to chars
+            self.name = ''.join([chr(x) for x in self._ab[0:self._cb] if x != 0])
+        else:
+            # In Python 2 we have chars we need to convert to numbers to check them
+            self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
