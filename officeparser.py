@@ -5,6 +5,7 @@
 #             - VBA: fixed infinite loop when output file already exists
 #             - improved logging output, set default level to INFO
 
+from __future__ import print_function
 import sys
 from struct import unpack
 from optparse import OptionParser
@@ -268,7 +269,7 @@ class CompoundBinaryFile:
 
     def print_fat_sectors(self):
         for sector in self.fat_sectors:
-            print '{0:08X}'.format(sector)
+            print('{0:08X}'.format(sector))
 
     def get_stream(self, index):
         d = self.directory[index]
@@ -315,7 +316,7 @@ class Header:
         self._sectFat = self.header[18:] # sects of first 109 FAT sectors
 
     def pretty_print(self):
-        print """HEADER DUMP
+        print("""HEADER DUMP
 _abSig              = {0}
 _clid               = {1}
 _uMinorVersion      = {2}
@@ -353,11 +354,11 @@ _csectDif           = {17}""".format(
         '{0:08X}'.format(self._sectMiniFatStart),
         '{0:08X}'.format(self._csectMiniFat),
         '{0:08X}'.format(self._sectDifStart),
-        '{0:08X}'.format(self._csectDif))
+        '{0:08X}'.format(self._csectDif)))
 
         for fat in self._sectFat:
             if fat != FREESECT:
-                print '_sectFat            = {0:08X}'.format(fat)
+                print('_sectFat            = {0:08X}'.format(fat))
 
 STGTY_INVALID = 0
 STGTY_STORAGE = 1
@@ -416,7 +417,7 @@ class Directory:
         # last two bytes are padding
 
     def pretty_print(self):
-        print """
+        print("""
 _ab                 = {0}
 _cb                 = {1}
 _mse                = {2}
@@ -446,7 +447,7 @@ _dptPropType        = {13}""".format(
         '{0}'.format(self._time[1]),
         '{0:08X}'.format(self._sectStart),
         '{0:08X} ({0} bytes)'.format(self._ulSize),
-        '{0:04X}'.format(self._dptPropType))
+        '{0:04X}'.format(self._dptPropType)))
 
 def _main():
 
@@ -561,22 +562,22 @@ def _main():
 
     if options.print_directory:
         for x in xrange(0, len(ofdoc.directory)):
-            print "Directory Index {0:08X} ({0})".format(x)
+            print("Directory Index {0:08X} ({0})".format(x))
             ofdoc.directory[x].pretty_print()
-            print
+            print()
 
     if options.print_fat:
         for sector in xrange(0, len(ofdoc.fat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector]))
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector])))
 
     if options.print_mini_fat:
         for sector in xrange(0, len(ofdoc.minifat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector]))
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector])))
 
     if options.print_streams:
         for d in ofdoc.directory:
             if d._mse == STGTY_STREAM:
-                print '{0}: {1}'.format(d.index, d.name)
+                print('{0}: {1}'.format(d.index, d.name))
 
     if options.print_expected_file_size:
         expected_file_size = (len([x for x in ofdoc.fat if x != FREESECT]) * ofdoc.sector_size) + 512
@@ -584,8 +585,8 @@ def _main():
         size_diff = abs(expected_file_size - actual_file_size)
         percent_diff = (float(size_diff) / float(expected_file_size)) * 100.0
 
-        print "expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
-            expected_file_size, actual_file_size, size_diff, percent_diff)
+        print("expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
+            expected_file_size, actual_file_size, size_diff, percent_diff))
 
     #
     # analysis options
@@ -620,7 +621,7 @@ def _main():
                     logging.warning('invalid FAT sector reference {0:08X}'.format(value))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT sector references: {0}".format(invalid_fat_sectors)
+        print("invalid FAT sector references: {0}".format(invalid_fat_sectors))
 
     invalid_fat_entries = 0
     if options.check_fat or options.print_invalid_fat_count:
@@ -634,7 +635,7 @@ def _main():
                     logging.warning('invalid FAT sector {0:08X} value {1:08X}'.format(value, ptr))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT entries: {0}".format(invalid_fat_entries)
+        print("invalid FAT entries: {0}".format(invalid_fat_entries))
 
     if options.check_orphaned_chains:
         buffer = [False for fat in ofdoc.fat]
