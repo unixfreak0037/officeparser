@@ -56,6 +56,23 @@ def copytoken_help(difference):
     maximum_length = (0xFFFF >> bit_count) + 3
     return length_mask, offset_mask, bit_count, maximum_length
 
+
+def to_hex(data):
+    if PY3:
+        hex = ' '.join(['{0:02X}'.format(x) for x in data])
+    else:
+        hex = ' '.join(['{0:02X}'.format(ord(x)) for x in data])
+    return hex
+
+def to_ascii(data):
+    if PY3:
+        # In Python 3 we have numbers we need to convert to chars
+        ascii = ''.join([chr(x) for x in data if x != 0])
+    else:
+        # In Python 2 we have chars we need to convert to numbers to check them
+        ascii = ''.join([x for x in data if ord(x) != 0])
+    return ascii
+
 def decompress_stream(compressed_container):
     # MS-OVBA
     # 2.4.1.2
@@ -342,8 +359,8 @@ _sectMiniFatStart   = {14}
 _csectMiniFat       = {15}
 _sectDifStart       = {16}
 _csectDif           = {17}""".format(
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._abSig]),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clid]),
+        to_hex(self._abSig),
+        to_hex(self._clid),
         '{0:04X}'.format(self._uMinorVersion),
         '{0}'.format(self._uDllVersion),
         '{0:04X}'.format(self._uByteOrder),
@@ -409,12 +426,7 @@ class Directory:
         self._ab = self.directory[0]
         self._cb = self.directory[1]
         # convert wide chars into ASCII
-        if PY3:
-            # In Python 3 we have numbers we need to convert to chars
-            self.name = ''.join([chr(x) for x in self._ab[0:self._cb] if x != 0])
-        else:
-            # In Python 2 we have chars we need to convert to numbers to check them
-            self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        self.name = to_ascii(self._ab[0:self._cb])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
@@ -444,8 +456,7 @@ _time[1]            = {10}
 _sectStart          = {11}
 _ulSize             = {12}
 _dptPropType        = {13}""".format(
-        "{0}\n                      {1}".format(self.name,
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._ab[0:self._cb]])),
+        "{0}\n                      {1}".format(self.name,to_hex(self._ab[0:self._cb])),
         #unicode(self._ab).encode('us-ascii', 'ignore'),
         '{0:04X}'.format(self._cb),
         stgty_to_str(self._mse),
@@ -453,7 +464,7 @@ _dptPropType        = {13}""".format(
         '{0:04X}'.format(self._sidLeftSib),
         '{0:04X}'.format(self._sidRightSib),
         '{0:04X}'.format(self._sidChild),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clsId]),
+        to_hex(self._clsId),
         '{0:04X}'.format(self._dwUserFlags),
         '{0}'.format(self._time[0]),
         '{0}'.format(self._time[1]),
