@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # CHANGELOG:
+# 2019-10-25: - bring the python3 compatibility
 # 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
 #             - VBA: fixed infinite loop when output file already exists
 #             - improved logging output, set default level to INFO
@@ -28,7 +29,11 @@ FORM_EXTENSION = "frm"
 
 BINFILE_NAME = "/vbaProject.bin"
 
-PY3 = sys.version_info[0] == 3
+PY3 = sys.version_info[0] >= 3
+
+# Python2 backwards compatibility
+if not PY3:
+    range=xrange
 
 def fat_value_to_str(value):
     if value == DIFSECT:
@@ -95,7 +100,7 @@ def decompress_stream(compressed_container):
         while compressed_current < compressed_end:
             flag_byte = ord(compressed_container[compressed_current])
             compressed_current += 1
-            for bit_index in xrange(0, 8):
+            for bit_index in range(0, 8):
                 if compressed_current >= compressed_end:
                     break
                 if (1 << bit_index) & flag_byte == 0: # LiteralToken
@@ -114,7 +119,7 @@ def decompress_stream(compressed_container):
                 temp2 = 16 - bit_count
                 offset = (temp1 >> temp2) + 1
                 copy_source = len(decompressed_container) - offset
-                for index in xrange(copy_source, copy_source + length):
+                for index in range(copy_source, copy_source + length):
                     decompressed_container += decompressed_container[index]
                 compressed_current += 2
 
@@ -568,17 +573,17 @@ def _main():
         ofdoc.header.pretty_print()
 
     if options.print_directory:
-        for x in xrange(0, len(ofdoc.directory)):
+        for x in range(0, len(ofdoc.directory)):
             print("Directory Index {0:08X} ({0})".format(x))
             ofdoc.directory[x].pretty_print()
             print()
 
     if options.print_fat:
-        for sector in xrange(0, len(ofdoc.fat)):
+        for sector in range(0, len(ofdoc.fat)):
             print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector])))
 
     if options.print_mini_fat:
-        for sector in xrange(0, len(ofdoc.minifat)):
+        for sector in range(0, len(ofdoc.minifat)):
             print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector])))
 
     if options.print_streams:
@@ -632,7 +637,7 @@ def _main():
 
     invalid_fat_entries = 0
     if options.check_fat or options.print_invalid_fat_count:
-        for value in xrange(0, len(ofdoc.fat)):
+        for value in range(0, len(ofdoc.fat)):
             ptr = ofdoc.read_fat(value)
             if ptr == DIFSECT or ptr == FATSECT or ptr == ENDOFCHAIN or ptr == FREESECT:
                 continue
@@ -674,7 +679,7 @@ def _main():
                 buffer[index] = True
                 index = ofdoc.read_fat(index)
 
-        for index in xrange(0, len(buffer)):
+        for index in range(0, len(buffer)):
             #logging.debug('{0:08X} {1} {2}'.format(index, buffer[index], fat_value_to_str(ofdoc.read_fat(index))))
             if ofdoc.read_fat(index) == FREESECT and buffer[index] == True:
                 logging.warning('FREESECT is marked as used')
@@ -1077,7 +1082,7 @@ def _main():
         PROJECTMODULES_ProjectCookieRecord_Cookie = unpack("<H", dir_stream.read(2))[0]
 
         logging.debug("parsing {0} modules".format(PROJECTMODULES_Count))
-        for x in xrange(0, PROJECTMODULES_Count):
+        for x in range(0, PROJECTMODULES_Count):
             MODULENAME_Id = unpack("<H", dir_stream.read(2))[0]
             check_value('MODULENAME_Id', 0x0019, MODULENAME_Id)
             MODULENAME_SizeOfModuleName = unpack("<L", dir_stream.read(4))[0]
