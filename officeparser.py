@@ -463,6 +463,9 @@ _dptPropType        = {13}""".format(
 
 def _main():
 
+    if len(sys.argv) < 2:
+        sys.argv.append('--help')
+
     parser = OptionParser()
 
     parser.add_option('-l', '--log-level', dest='log_level',
