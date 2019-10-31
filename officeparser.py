@@ -1,21 +1,23 @@
 #!/usr/bin/env python
 
 # CHANGELOG:
+# 2019-10-25: - bring the python3 compatibility
 # 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
 #             - VBA: fixed infinite loop when output file already exists
 #             - improved logging output, set default level to INFO
 
+from __future__ import print_function
 import sys
 from struct import unpack
 from optparse import OptionParser
-from cStringIO import StringIO
+from io import BytesIO
 import logging
 import re
 import os
 import zipfile
 import tempfile
 
-OLE_SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
+OLE_SIGNATURE = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 DIFSECT = 0xFFFFFFFC;
 FATSECT = 0xFFFFFFFD;
 ENDOFCHAIN = 0xFFFFFFFE;
@@ -26,6 +28,12 @@ CLASS_EXTENSION = "cls"
 FORM_EXTENSION = "frm"
 
 BINFILE_NAME = "/vbaProject.bin"
+
+PY3 = sys.version_info[0] >= 3
+
+# Python2 backwards compatibility
+if not PY3:
+    range=xrange
 
 def fat_value_to_str(value):
     if value == DIFSECT:
@@ -47,6 +55,23 @@ def copytoken_help(difference):
     offset_mask = ~length_mask
     maximum_length = (0xFFFF >> bit_count) + 3
     return length_mask, offset_mask, bit_count, maximum_length
+
+
+def to_hex(data):
+    if PY3:
+        hex = ' '.join(['{0:02X}'.format(x) for x in data])
+    else:
+        hex = ' '.join(['{0:02X}'.format(ord(x)) for x in data])
+    return hex
+
+def to_ascii(data):
+    if PY3:
+        # In Python 3 we have numbers we need to convert to chars
+        ascii = ''.join([chr(x) for x in data if x != 0])
+    else:
+        # In Python 2 we have chars we need to convert to numbers to check them
+        ascii = ''.join([x for x in data if ord(x) != 0])
+    return ascii
 
 def decompress_stream(compressed_container):
     # MS-OVBA
@@ -92,7 +117,7 @@ def decompress_stream(compressed_container):
         while compressed_current < compressed_end:
             flag_byte = ord(compressed_container[compressed_current])
             compressed_current += 1
-            for bit_index in xrange(0, 8):
+            for bit_index in range(0, 8):
                 if compressed_current >= compressed_end:
                     break
                 if (1 << bit_index) & flag_byte == 0: # LiteralToken
@@ -111,7 +136,7 @@ def decompress_stream(compressed_container):
                 temp2 = 16 - bit_count
                 offset = (temp1 >> temp2) + 1
                 copy_source = len(decompressed_container) - offset
-                for index in xrange(copy_source, copy_source + length):
+                for index in range(copy_source, copy_source + length):
                     decompressed_container += decompressed_container[index]
                 compressed_current += 2
 
@@ -193,14 +218,14 @@ class CompoundBinaryFile:
             if len(data) != self.sector_size:
                 logging.error('broken FAT (invalid sector size {0} != {1})'.format(len(data), self.sector_size))
             else:
-                for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                for value in unpack('<{0}L'.format(self.sector_size // 4), data):
                     self.fat.append(value)
 
         # get the list of directory sectors
         self.directory = []
         buffer = self.read_chain(self.header._sectDirStart)
         directory_index = 0
-        for chunk in unpack("128s" * (len(buffer) / 128), buffer):
+        for chunk in unpack("128s" * (len(buffer) // 128), buffer):
             self.directory.append(Directory(chunk, directory_index))
             directory_index += 1
 
@@ -217,15 +242,15 @@ class CompoundBinaryFile:
             # chain in the Fat, with the beginning of the chain stored in the
             # header.
 
-            data = StringIO(self.read_chain(self.header._sectMiniFatStart))
+            data = BytesIO(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
-                if chunk == '':
+                if len(chunk) == 0:
                     break
                 if len(chunk) != self.sector_size:
                     logging.warning("encountered EOF while parsing minifat")
                     continue
-                for value in unpack('<{0}L'.format(self.sector_size / 4), chunk):
+                for value in unpack('<{0}L'.format(self.sector_size // 4), chunk):
                     self.minifat.append(value)
 
     def read_sector(self, sector):
@@ -248,7 +273,7 @@ class CompoundBinaryFile:
         """Returns the entire contents of a chain starting at the given sector."""
         sector = start
         check = [ sector ] # keep a list of sectors we've already read
-        buffer = StringIO()
+        buffer = BytesIO()
         while sector != ENDOFCHAIN:
             buffer.write(read_sector_f(sector))
             next = read_fat_f(sector)
@@ -268,7 +293,7 @@ class CompoundBinaryFile:
 
     def print_fat_sectors(self):
         for sector in self.fat_sectors:
-            print '{0:08X}'.format(sector)
+            print('{0:08X}'.format(sector))
 
     def get_stream(self, index):
         d = self.directory[index]
@@ -315,7 +340,7 @@ class Header:
         self._sectFat = self.header[18:] # sects of first 109 FAT sectors
 
     def pretty_print(self):
-        print """HEADER DUMP
+        print("""HEADER DUMP
 _abSig              = {0}
 _clid               = {1}
 _uMinorVersion      = {2}
@@ -334,8 +359,8 @@ _sectMiniFatStart   = {14}
 _csectMiniFat       = {15}
 _sectDifStart       = {16}
 _csectDif           = {17}""".format(
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._abSig]),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clid]),
+        to_hex(self._abSig),
+        to_hex(self._clid),
         '{0:04X}'.format(self._uMinorVersion),
         '{0}'.format(self._uDllVersion),
         '{0:04X}'.format(self._uByteOrder),
@@ -353,11 +378,11 @@ _csectDif           = {17}""".format(
         '{0:08X}'.format(self._sectMiniFatStart),
         '{0:08X}'.format(self._csectMiniFat),
         '{0:08X}'.format(self._sectDifStart),
-        '{0:08X}'.format(self._csectDif))
+        '{0:08X}'.format(self._csectDif)))
 
         for fat in self._sectFat:
             if fat != FREESECT:
-                print '_sectFat            = {0:08X}'.format(fat)
+                print('_sectFat            = {0:08X}'.format(fat))
 
 STGTY_INVALID = 0
 STGTY_STORAGE = 1
@@ -401,7 +426,7 @@ class Directory:
         self._ab = self.directory[0]
         self._cb = self.directory[1]
         # convert wide chars into ASCII
-        self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        self.name = to_ascii(self._ab[0:self._cb])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
@@ -416,7 +441,7 @@ class Directory:
         # last two bytes are padding
 
     def pretty_print(self):
-        print """
+        print("""
 _ab                 = {0}
 _cb                 = {1}
 _mse                = {2}
@@ -431,8 +456,7 @@ _time[1]            = {10}
 _sectStart          = {11}
 _ulSize             = {12}
 _dptPropType        = {13}""".format(
-        "{0}\n                      {1}".format(self.name,
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._ab[0:self._cb]])),
+        "{0}\n                      {1}".format(self.name,to_hex(self._ab[0:self._cb])),
         #unicode(self._ab).encode('us-ascii', 'ignore'),
         '{0:04X}'.format(self._cb),
         stgty_to_str(self._mse),
@@ -440,15 +464,18 @@ _dptPropType        = {13}""".format(
         '{0:04X}'.format(self._sidLeftSib),
         '{0:04X}'.format(self._sidRightSib),
         '{0:04X}'.format(self._sidChild),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clsId]),
+        to_hex(self._clsId),
         '{0:04X}'.format(self._dwUserFlags),
         '{0}'.format(self._time[0]),
         '{0}'.format(self._time[1]),
         '{0:08X}'.format(self._sectStart),
         '{0:08X} ({0} bytes)'.format(self._ulSize),
-        '{0:04X}'.format(self._dptPropType))
+        '{0:04X}'.format(self._dptPropType)))
 
 def _main():
+
+    if len(sys.argv) < 2:
+        sys.argv.append('--help')
 
     parser = OptionParser()
 
@@ -560,23 +587,23 @@ def _main():
         ofdoc.header.pretty_print()
 
     if options.print_directory:
-        for x in xrange(0, len(ofdoc.directory)):
-            print "Directory Index {0:08X} ({0})".format(x)
+        for x in range(0, len(ofdoc.directory)):
+            print("Directory Index {0:08X} ({0})".format(x))
             ofdoc.directory[x].pretty_print()
-            print
+            print()
 
     if options.print_fat:
-        for sector in xrange(0, len(ofdoc.fat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector]))
+        for sector in range(0, len(ofdoc.fat)):
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector])))
 
     if options.print_mini_fat:
-        for sector in xrange(0, len(ofdoc.minifat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector]))
+        for sector in range(0, len(ofdoc.minifat)):
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector])))
 
     if options.print_streams:
         for d in ofdoc.directory:
             if d._mse == STGTY_STREAM:
-                print '{0}: {1}'.format(d.index, d.name)
+                print('{0}: {1}'.format(d.index, d.name))
 
     if options.print_expected_file_size:
         expected_file_size = (len([x for x in ofdoc.fat if x != FREESECT]) * ofdoc.sector_size) + 512
@@ -584,8 +611,8 @@ def _main():
         size_diff = abs(expected_file_size - actual_file_size)
         percent_diff = (float(size_diff) / float(expected_file_size)) * 100.0
 
-        print "expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
-            expected_file_size, actual_file_size, size_diff, percent_diff)
+        print("expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
+            expected_file_size, actual_file_size, size_diff, percent_diff))
 
     #
     # analysis options
@@ -620,11 +647,11 @@ def _main():
                     logging.warning('invalid FAT sector reference {0:08X}'.format(value))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT sector references: {0}".format(invalid_fat_sectors)
+        print("invalid FAT sector references: {0}".format(invalid_fat_sectors))
 
     invalid_fat_entries = 0
     if options.check_fat or options.print_invalid_fat_count:
-        for value in xrange(0, len(ofdoc.fat)):
+        for value in range(0, len(ofdoc.fat)):
             ptr = ofdoc.read_fat(value)
             if ptr == DIFSECT or ptr == FATSECT or ptr == ENDOFCHAIN or ptr == FREESECT:
                 continue
@@ -634,7 +661,7 @@ def _main():
                     logging.warning('invalid FAT sector {0:08X} value {1:08X}'.format(value, ptr))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT entries: {0}".format(invalid_fat_entries)
+        print("invalid FAT entries: {0}".format(invalid_fat_entries))
 
     if options.check_orphaned_chains:
         buffer = [False for fat in ofdoc.fat]
@@ -666,7 +693,7 @@ def _main():
                 buffer[index] = True
                 index = ofdoc.read_fat(index)
 
-        for index in xrange(0, len(buffer)):
+        for index in range(0, len(buffer)):
             #logging.debug('{0:08X} {1} {2}'.format(index, buffer[index], fat_value_to_str(ofdoc.read_fat(index))))
             if ofdoc.read_fat(index) == FREESECT and buffer[index] == True:
                 logging.warning('FREESECT is marked as used')
@@ -677,20 +704,20 @@ def _main():
     # dump options
     #
     if options.dump_sector:
-        sys.stdout.write(ofdoc.read_sector(options.dump_sector))
+        os.write(sys.stdout.fileno(), ofdoc.read_sector(options.dump_sector))
         sys.exit(0)
 
     if options.dump_ministream:
-        sys.stdout.write(ofdoc.ministream)
+        os.write(sys.stdout.fileno(), (ofdoc.ministream))
         sys.exit(0)
 
     if options.dump_stream:
-        sys.stdout.write(ofdoc.get_stream(options.dump_stream))
+        os.write(sys.stdout.fileno(), (ofdoc.get_stream(options.dump_stream)))
         sys.exit(0)
 
     if options.dump_stream_by_name:
         d = ofdoc.find_stream_by_name(options.dump_stream_by_name)
-        sys.stdout.write(ofdoc.get_stream(d.index))
+        os.write(sys.stdout.fileno(), (ofdoc.get_stream(d.index)))
         sys.exit(0)
 
     #
@@ -793,8 +820,8 @@ def _main():
                 f.write(ofdoc.get_stream(d.index))
                 f.close()
                 if options.create_manifest:
-                    manifest.write(os.path.basename(filename))
-                    manifest.write("\n")
+                    manifest.write(os.path.basename(filename).encode())
+                    manifest.write(b"\n")
                 logging.debug("created file {0}".format(filename))
 
     while options.extract_macros:
@@ -1069,7 +1096,7 @@ def _main():
         PROJECTMODULES_ProjectCookieRecord_Cookie = unpack("<H", dir_stream.read(2))[0]
 
         logging.debug("parsing {0} modules".format(PROJECTMODULES_Count))
-        for x in xrange(0, PROJECTMODULES_Count):
+        for x in range(0, PROJECTMODULES_Count):
             MODULENAME_Id = unpack("<H", dir_stream.read(2))[0]
             check_value('MODULENAME_Id', 0x0019, MODULENAME_Id)
             MODULENAME_SizeOfModuleName = unpack("<L", dir_stream.read(4))[0]
