@@ -17,7 +17,7 @@ import os
 import zipfile
 import tempfile
 
-OLE_SIGNATURE = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
+OLE_SIGNATURE = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
 DIFSECT = 0xFFFFFFFC;
 FATSECT = 0xFFFFFFFD;
 ENDOFCHAIN = 0xFFFFFFFE;
