@@ -548,6 +548,10 @@ def _main():
 
     (options, args) = parser.parse_args()
 
+    if len(args) < 1:
+        print("A path to an OLE MSOffice file must be given. Run with --help for more information.")
+        return 1
+
     logging.basicConfig(format='%(levelname)s: %(message)s',
         level=logging.__dict__[options.log_level])
 
