@@ -8,7 +8,10 @@
 import sys
 from struct import unpack
 from optparse import OptionParser
-from cStringIO import StringIO
+try:
+  from cStringIO import StringIO as sio
+except ModuleNotFoundError:
+  from io import BytesIO as sio
 import logging
 import re
 import os
@@ -217,7 +220,7 @@ class CompoundBinaryFile:
             # chain in the Fat, with the beginning of the chain stored in the
             # header.
 
-            data = StringIO(self.read_chain(self.header._sectMiniFatStart))
+            data = sio(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
                 if chunk == '':
@@ -248,7 +251,7 @@ class CompoundBinaryFile:
         """Returns the entire contents of a chain starting at the given sector."""
         sector = start
         check = [ sector ] # keep a list of sectors we've already read
-        buffer = StringIO()
+        buffer = sio()
         while sector != ENDOFCHAIN:
             buffer.write(read_sector_f(sector))
             next = read_fat_f(sector)
@@ -805,7 +808,7 @@ def _main():
             break
 
         # parse PROJECT
-        buffer = StringIO()
+        buffer = sio()
         buffer.write(ofdoc.get_stream(project.index))
         buffer.seek(0)
         re_keyval = re.compile(r'^([^=]+)=(.*)$')
@@ -853,7 +856,7 @@ def _main():
             if expected != value:
                 logging.error("invalid value for {0} expected {1:04X} got {2:04X}".format(name, expected, value))
 
-        dir_stream = StringIO(decompress_stream(ofdoc.get_stream(dir_stream.index)))
+        dir_stream = sio(decompress_stream(ofdoc.get_stream(dir_stream.index)))
 
         # PROJECTSYSKIND Record
         PROJECTSYSKIND_Id = unpack("<H", dir_stream.read(2))[0]
