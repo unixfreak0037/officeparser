@@ -196,14 +196,14 @@ class CompoundBinaryFile:
             if len(data) != self.sector_size:
                 logging.error('broken FAT (invalid sector size {0} != {1})'.format(len(data), self.sector_size))
             else:
-                for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                for value in unpack('<{0}L'.format(int(self.sector_size / 4)), data):
                     self.fat.append(value)
 
         # get the list of directory sectors
         self.directory = []
         buffer = self.read_chain(self.header._sectDirStart)
         directory_index = 0
-        for chunk in unpack("128s" * (len(buffer) / 128), buffer):
+        for chunk in unpack("128s" * int(len(buffer) / 128), buffer):
             self.directory.append(Directory(chunk, directory_index))
             directory_index += 1
 
@@ -223,12 +223,12 @@ class CompoundBinaryFile:
             data = sio(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
-                if chunk == '':
+                if chunk == b'':
                     break
                 if len(chunk) != self.sector_size:
                     logging.warning("encountered EOF while parsing minifat")
                     continue
-                for value in unpack('<{0}L'.format(self.sector_size / 4), chunk):
+                for value in unpack('<{0}L'.format(int(self.sector_size / 4)), chunk):
                     self.minifat.append(value)
 
     def read_sector(self, sector):
@@ -337,8 +337,8 @@ _sectMiniFatStart   = {14}
 _csectMiniFat       = {15}
 _sectDifStart       = {16}
 _csectDif           = {17}""".format(
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._abSig]),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clid]),
+        ' '.join(['{0:02X}'.format(ord(x) if isinstance(x, str) else x) for x in self._abSig]),
+        ' '.join(['{0:02X}'.format(ord(x) if isinstance(x, str) else x) for x in self._clid]),
         '{0:04X}'.format(self._uMinorVersion),
         '{0}'.format(self._uDllVersion),
         '{0:04X}'.format(self._uByteOrder),
@@ -404,7 +404,10 @@ class Directory:
         self._ab = self.directory[0]
         self._cb = self.directory[1]
         # convert wide chars into ASCII
-        self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        if isinstance(self._ab[0], str):
+            self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        else:
+            self.name = ''.join([chr(x) for x in self._ab[0:self._cb] if x != 0])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
