@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 # CHANGELOG:
+# 2020-01-09: - Changes to make it compatible with Python3
+#             - Add better explanation of error when no OLE document filename is provided
 # 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
 #             - VBA: fixed infinite loop when output file already exists
 #             - improved logging output, set default level to INFO
@@ -8,7 +10,10 @@
 import sys
 from struct import unpack
 from optparse import OptionParser
-from cStringIO import StringIO
+try:
+  from cStringIO import StringIO as sio
+except ModuleNotFoundError:
+  from io import BytesIO as sio
 import logging
 import re
 import os
@@ -193,14 +198,14 @@ class CompoundBinaryFile:
             if len(data) != self.sector_size:
                 logging.error('broken FAT (invalid sector size {0} != {1})'.format(len(data), self.sector_size))
             else:
-                for value in unpack('<{0}L'.format(self.sector_size / 4), data):
+                for value in unpack('<{0}L'.format(int(self.sector_size / 4)), data):
                     self.fat.append(value)
 
         # get the list of directory sectors
         self.directory = []
         buffer = self.read_chain(self.header._sectDirStart)
         directory_index = 0
-        for chunk in unpack("128s" * (len(buffer) / 128), buffer):
+        for chunk in unpack("128s" * int(len(buffer) / 128), buffer):
             self.directory.append(Directory(chunk, directory_index))
             directory_index += 1
 
@@ -217,15 +222,15 @@ class CompoundBinaryFile:
             # chain in the Fat, with the beginning of the chain stored in the
             # header.
 
-            data = StringIO(self.read_chain(self.header._sectMiniFatStart))
+            data = sio(self.read_chain(self.header._sectMiniFatStart))
             while True:
                 chunk = data.read(self.sector_size)
-                if chunk == '':
+                if chunk == b'':
                     break
                 if len(chunk) != self.sector_size:
                     logging.warning("encountered EOF while parsing minifat")
                     continue
-                for value in unpack('<{0}L'.format(self.sector_size / 4), chunk):
+                for value in unpack('<{0}L'.format(int(self.sector_size / 4)), chunk):
                     self.minifat.append(value)
 
     def read_sector(self, sector):
@@ -248,7 +253,7 @@ class CompoundBinaryFile:
         """Returns the entire contents of a chain starting at the given sector."""
         sector = start
         check = [ sector ] # keep a list of sectors we've already read
-        buffer = StringIO()
+        buffer = sio()
         while sector != ENDOFCHAIN:
             buffer.write(read_sector_f(sector))
             next = read_fat_f(sector)
@@ -268,7 +273,7 @@ class CompoundBinaryFile:
 
     def print_fat_sectors(self):
         for sector in self.fat_sectors:
-            print '{0:08X}'.format(sector)
+            print('{0:08X}'.format(sector))
 
     def get_stream(self, index):
         d = self.directory[index]
@@ -315,7 +320,7 @@ class Header:
         self._sectFat = self.header[18:] # sects of first 109 FAT sectors
 
     def pretty_print(self):
-        print """HEADER DUMP
+        print("""HEADER DUMP
 _abSig              = {0}
 _clid               = {1}
 _uMinorVersion      = {2}
@@ -334,8 +339,8 @@ _sectMiniFatStart   = {14}
 _csectMiniFat       = {15}
 _sectDifStart       = {16}
 _csectDif           = {17}""".format(
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._abSig]),
-        ' '.join(['{0:02X}'.format(ord(x)) for x in self._clid]),
+        ' '.join(['{0:02X}'.format(ord(x) if isinstance(x, str) else x) for x in self._abSig]),
+        ' '.join(['{0:02X}'.format(ord(x) if isinstance(x, str) else x) for x in self._clid]),
         '{0:04X}'.format(self._uMinorVersion),
         '{0}'.format(self._uDllVersion),
         '{0:04X}'.format(self._uByteOrder),
@@ -353,11 +358,11 @@ _csectDif           = {17}""".format(
         '{0:08X}'.format(self._sectMiniFatStart),
         '{0:08X}'.format(self._csectMiniFat),
         '{0:08X}'.format(self._sectDifStart),
-        '{0:08X}'.format(self._csectDif))
+        '{0:08X}'.format(self._csectDif)))
 
         for fat in self._sectFat:
             if fat != FREESECT:
-                print '_sectFat            = {0:08X}'.format(fat)
+                print('_sectFat            = {0:08X}'.format(fat))
 
 STGTY_INVALID = 0
 STGTY_STORAGE = 1
@@ -401,7 +406,10 @@ class Directory:
         self._ab = self.directory[0]
         self._cb = self.directory[1]
         # convert wide chars into ASCII
-        self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        if isinstance(self._ab[0], str):
+            self.name = ''.join([x for x in self._ab[0:self._cb] if ord(x) != 0])
+        else:
+            self.name = ''.join([chr(x) for x in self._ab[0:self._cb] if x != 0])
         self._mse = self.directory[2]
         self._bflags = self.directory[3]
         self._sidLeftSib = self.directory[4]
@@ -416,7 +424,7 @@ class Directory:
         # last two bytes are padding
 
     def pretty_print(self):
-        print """
+        print("""
 _ab                 = {0}
 _cb                 = {1}
 _mse                = {2}
@@ -446,7 +454,7 @@ _dptPropType        = {13}""".format(
         '{0}'.format(self._time[1]),
         '{0:08X}'.format(self._sectStart),
         '{0:08X} ({0} bytes)'.format(self._ulSize),
-        '{0:04X}'.format(self._dptPropType))
+        '{0:04X}'.format(self._dptPropType)))
 
 def _main():
 
@@ -542,6 +550,10 @@ def _main():
 
     (options, args) = parser.parse_args()
 
+    if len(args) < 1:
+        print("A path to an OLE MSOffice file must be given. Run with --help for more information.")
+        return 1
+
     logging.basicConfig(format='%(levelname)s: %(message)s',
         level=logging.__dict__[options.log_level])
 
@@ -561,22 +573,22 @@ def _main():
 
     if options.print_directory:
         for x in xrange(0, len(ofdoc.directory)):
-            print "Directory Index {0:08X} ({0})".format(x)
+            print("Directory Index {0:08X} ({0})".format(x))
             ofdoc.directory[x].pretty_print()
-            print
+            print()
 
     if options.print_fat:
         for sector in xrange(0, len(ofdoc.fat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector]))
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.fat[sector])))
 
     if options.print_mini_fat:
         for sector in xrange(0, len(ofdoc.minifat)):
-            print '{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector]))
+            print('{0:08X}: {1}'.format(sector, fat_value_to_str(ofdoc.minifat[sector])))
 
     if options.print_streams:
         for d in ofdoc.directory:
             if d._mse == STGTY_STREAM:
-                print '{0}: {1}'.format(d.index, d.name)
+                print('{0}: {1}'.format(d.index, d.name))
 
     if options.print_expected_file_size:
         expected_file_size = (len([x for x in ofdoc.fat if x != FREESECT]) * ofdoc.sector_size) + 512
@@ -584,8 +596,8 @@ def _main():
         size_diff = abs(expected_file_size - actual_file_size)
         percent_diff = (float(size_diff) / float(expected_file_size)) * 100.0
 
-        print "expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
-            expected_file_size, actual_file_size, size_diff, percent_diff)
+        print("expected file size {0} actual {1} difference {2} ({3:0.2f}%)".format(
+            expected_file_size, actual_file_size, size_diff, percent_diff))
 
     #
     # analysis options
@@ -620,7 +632,7 @@ def _main():
                     logging.warning('invalid FAT sector reference {0:08X}'.format(value))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT sector references: {0}".format(invalid_fat_sectors)
+        print("invalid FAT sector references: {0}".format(invalid_fat_sectors))
 
     invalid_fat_entries = 0
     if options.check_fat or options.print_invalid_fat_count:
@@ -634,7 +646,7 @@ def _main():
                     logging.warning('invalid FAT sector {0:08X} value {1:08X}'.format(value, ptr))
 
     if options.print_invalid_fat_count:
-        print "invalid FAT entries: {0}".format(invalid_fat_entries)
+        print("invalid FAT entries: {0}".format(invalid_fat_entries))
 
     if options.check_orphaned_chains:
         buffer = [False for fat in ofdoc.fat]
@@ -805,7 +817,7 @@ def _main():
             break
 
         # parse PROJECT
-        buffer = StringIO()
+        buffer = sio()
         buffer.write(ofdoc.get_stream(project.index))
         buffer.seek(0)
         re_keyval = re.compile(r'^([^=]+)=(.*)$')
@@ -853,7 +865,7 @@ def _main():
             if expected != value:
                 logging.error("invalid value for {0} expected {1:04X} got {2:04X}".format(name, expected, value))
 
-        dir_stream = StringIO(decompress_stream(ofdoc.get_stream(dir_stream.index)))
+        dir_stream = sio(decompress_stream(ofdoc.get_stream(dir_stream.index)))
 
         # PROJECTSYSKIND Record
         PROJECTSYSKIND_Id = unpack("<H", dir_stream.read(2))[0]
