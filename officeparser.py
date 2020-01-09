@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 # CHANGELOG:
+# 2020-01-09: - Changes to make it compatible with Python3
+#             - Add better explanation of error when no OLE document filename is provided
 # 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
 #             - VBA: fixed infinite loop when output file already exists
 #             - improved logging output, set default level to INFO
