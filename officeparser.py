@@ -834,7 +834,7 @@ def _main():
             # looking for code modules
             # add the code module as a key in the dictionary
             # the value will be the extension needed later
-            if m.group(1) == 'Document':
+            if m.group(1) == 'Document' or m.group(1) == 'DocClass':
                 code_modules[m.group(2).split("\x2F")[0]] = CLASS_EXTENSION
             elif m.group(1) == 'Module':
                 code_modules[m.group(2)] = MODULE_EXTENSION
