@@ -915,7 +915,7 @@ def _main():
         PROJECTDOCSTRING_Id = unpack("<H", dir_stream.read(2))[0]
         check_value('PROJECTDOCSTRING_Id', 0x0005, PROJECTDOCSTRING_Id)
         PROJECTDOCSTRING_SizeOfDocString = unpack("<L", dir_stream.read(4))[0]
-        if PROJECTNAME_SizeOfProjectName > 2000:
+        if PROJECTDOCSTRING_SizeOfDocString > 2000:
             logging.error("PROJECTDOCSTRING_SizeOfDocString value not in range: {0}".format(PROJECTDOCSTRING_SizeOfDocString))
         PROJECTDOCSTRING_DocString = dir_stream.read(PROJECTDOCSTRING_SizeOfDocString)
         PROJECTDOCSTRING_Reserved = unpack("<H", dir_stream.read(2))[0]
