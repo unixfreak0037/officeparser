@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 # CHANGELOG:
-# 2014-08-15: - VBA: fixed incorrect value check in PROJECTHELPFILEPATH Record
-#             - VBA: fixed infinite loop when output file already exists
-#             - improved logging output, set default level to INFO
+# 2023-08-12: - VBA: Added check for optional PROJECTCOMPATVERSION Record (MS OVBA 2.3.4.2.1.2 Revision 11.0)
+#             - VBA: fixed infinite loop if REFERENCE record is corrupt
 
 import sys
 from struct import unpack
@@ -872,13 +871,22 @@ def _main():
         else:
             logging.error("invalid PROJECTSYSKIND_SysKind {0:04X}".format(PROJECTSYSKIND_SysKind))
 
-        # PROJECTLCID Record
-        PROJECTLCID_Id = unpack("<H", dir_stream.read(2))[0]
-        check_value('PROJECTLCID_Id', 0x0002, PROJECTLCID_Id)
-        PROJECTLCID_Size = unpack("<L", dir_stream.read(4))[0]
-        check_value('PROJECTLCID_Size', 0x0004, PROJECTLCID_Size)
-        PROJECTLCID_Lcid = unpack("<L", dir_stream.read(4))[0]
-        check_value('PROJECTLCID_Lcid', 0x409, PROJECTLCID_Lcid)
+        # Optional PROJECTCOMPATVERSION Record (MS OVBA 2.3.4.2.1.2 Revision 11.0 8/17/2021)
+        record_check = unpack("<H", dir_stream.read(2))[0]
+        if record_check == 0x004A:
+            PROJECTCOMPATVERSION_Id = record_check
+            logging.debug("Document conforms to MS OVBA Revision 11.0 (8/17/2021)")
+            PROJECTCOMPATVERSION_Size = unpack("<L", dir_stream.read(4))[0]
+            check_value('PROJECTCOMPATVERSION_Size', 0x0004, PROJECTCOMPATVERSION_Size)
+            PROJECTCOMPATVERSION_CompatVersion = unpack("<L", dir_stream.read(4))[0]
+        else record_check == 0x0002:
+            # PROJECTLCID Record
+            PROJECTLCID_Id = record_check
+            check_value('PROJECTLCID_Id', 0x0002, PROJECTLCID_Id)
+            PROJECTLCID_Size = unpack("<L", dir_stream.read(4))[0]
+            check_value('PROJECTLCID_Size', 0x0004, PROJECTLCID_Size)
+            PROJECTLCID_Lcid = unpack("<L", dir_stream.read(4))[0]
+            check_value('PROJECTLCID_Lcid', 0x409, PROJECTLCID_Lcid)
 
         # PROJECTLCIDINVOKE Record
         PROJECTLCIDINVOKE_Id = unpack("<H", dir_stream.read(2))[0]
@@ -977,6 +985,11 @@ def _main():
             logging.debug("reference type = {0:04X}".format(check))
             if check == 0x000F:
                 break
+
+            # Prevent infinite loop
+            if check not in [ 0x0016, 0x0033, 0x002F, 0x000D, 0x000E]:
+                logging.error('invalid or unknown check Id {0:04X}'.format(check))
+                sys.exit(0)
 
             if check == 0x0016:
                 # REFERENCENAME
@@ -1149,6 +1162,11 @@ def _main():
             logging.debug("TextOffset = {0}".format(MODULEOFFSET_TextOffset))
 
             code_stream = ofdoc.find_stream_by_name(MODULESTREAMNAME_StreamName)
+            # check for None
+            if code_stream = None:
+                logging.warning('Stream name \"{0}\" not found'.format(MODULESTREAMNAME_StreamName))
+                continue
+
             code_data = ofdoc.get_stream(code_stream.index)
             logging.debug("length of code_data = {0}".format(len(code_data)))
             logging.debug("offset of code_data = {0}".format(MODULEOFFSET_TextOffset))
