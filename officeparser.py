@@ -1163,7 +1163,7 @@ def _main():
 
             code_stream = ofdoc.find_stream_by_name(MODULESTREAMNAME_StreamName)
             # check for None
-            if code_stream = None:
+            if code_stream == None:
                 logging.warning('Stream name \"{0}\" not found'.format(MODULESTREAMNAME_StreamName))
                 continue
 
