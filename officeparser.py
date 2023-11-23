@@ -879,7 +879,7 @@ def _main():
             PROJECTCOMPATVERSION_Size = unpack("<L", dir_stream.read(4))[0]
             check_value('PROJECTCOMPATVERSION_Size', 0x0004, PROJECTCOMPATVERSION_Size)
             PROJECTCOMPATVERSION_CompatVersion = unpack("<L", dir_stream.read(4))[0]
-        else record_check == 0x0002:
+        elif record_check == 0x0002:
             # PROJECTLCID Record
             PROJECTLCID_Id = record_check
             check_value('PROJECTLCID_Id', 0x0002, PROJECTLCID_Id)
